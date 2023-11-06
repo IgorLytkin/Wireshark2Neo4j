@@ -9,7 +9,7 @@ cap: FileCapture
 pkt: Packet
 layer: XmlLayer
 
-class HelloWorldExample:
+class Neo4jWorld:
 
     def __init__(self, uri, user, password):
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
@@ -22,6 +22,11 @@ class HelloWorldExample:
             greeting = session.execute_write(self._create_and_return_greeting, message)
             print(greeting)
 
+    def create_packet(self, message):           # Создать узел Пакет
+        with self.driver.session() as session:
+            packet = session.execute_write(self._create_and_return_packet, message)
+            print(packet)
+
     @staticmethod
     def _create_and_return_greeting(tx, message):
         result = tx.run("CREATE (a:Greeting) "
@@ -29,17 +34,26 @@ class HelloWorldExample:
                         "RETURN a.message + ', from node ' + id(a)", message=message)
         return result.single()[0]
 
+    @staticmethod
+    def _create_and_return_packet(tx, message):
+        result = tx.run("CREATE (p:Packet) "
+                        "SET p.message = $pkt.frame_info. "
+                        "RETURN p.message + ', from node ' + id(p)", message=message)
+        return result.single()[0]
 
 if __name__ == "__main__":
     config: Config = load_config()
-    greeter = HelloWorldExample("bolt://localhost:7687", config.neo4jcreds.user, config.neo4jcreds.password)
-    greeter.print_greeting("hello, world")
-    greeter.close()
+    packetgraph = Neo4jWorld("bolt://localhost:7687", config.neo4j_creds.user, config.neo4j_creds.password)
+    packetgraph.print_greeting("hello, world")
+    packetgraph.close()
 
     cap = pyshark.FileCapture(r'C:\Users\igorl\OneDrive\Документы\KPM-2.pcapng')
     for pkt in cap:  # для каждого пакета из файла захвата трафика
         print(pkt)
+        print(pkt.frame_info)
         print(pkt.layers)
+        packetgraph._create_packet(pkt)
+
         i: int = 1
         for layer in pkt.layers:  # для каждого слоя пакета
             print(i, layer)
