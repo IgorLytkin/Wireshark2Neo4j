@@ -22,10 +22,12 @@ class Neo4jWorld:
             greeting = session.execute_write(self._create_and_return_greeting, message)
             print(greeting)
 
-    def create_packet(self, message):           # Создать узел Пакет
-        with self.driver.session() as session:
-            packet = session.execute_write(self._create_and_return_packet, message)
-            print(packet)
+    # Метод для разбора одного пакета Ethernet, создает узлы Узел, Пакет
+    def parse_packet(self, ethernet_packet):
+        pass
+        # with self.driver.session() as session:
+        #    packet = session.execute_write(self._create_and_return_packet, message)
+        #    print(packet)
 
     @staticmethod
     def _create_and_return_greeting(tx, message):
@@ -37,7 +39,7 @@ class Neo4jWorld:
     @staticmethod
     def _create_and_return_packet(tx, message):
         result = tx.run("CREATE (p:Packet) "
-                        "SET p.message = $pkt.frame_info. "
+                        "SET p.frame_info = $message "
                         "RETURN p.message + ', from node ' + id(p)", message=message)
         return result.single()[0]
 
@@ -52,7 +54,7 @@ if __name__ == "__main__":
         print(pkt)
         print(pkt.frame_info)
         print(pkt.layers)
-        packetgraph._create_packet(pkt)
+        packetgraph.parse_packet(pkt)
 
         i: int = 1
         for layer in pkt.layers:  # для каждого слоя пакета
