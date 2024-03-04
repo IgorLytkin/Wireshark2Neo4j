@@ -4,13 +4,15 @@ from pyshark.packet.layers.xml_layer import XmlLayer
 from pyshark.packet.packet import Packet
 from neo4j import GraphDatabase
 from config_data.config import Config, load_config
-import itertools
 import logging
+import itertools
 
 
+# Глобальные переменные
 cap: FileCapture
 pkt: Packet
 layer: XmlLayer
+
 
 class Neo4jWorld:
 
@@ -46,26 +48,35 @@ class Neo4jWorld:
 
 
 if __name__ == "__main__":
-    logger = logging.getLogger(__name__)
-    logger.basicConfig(level=logging.DEBUG) # установка уровня журналирования
+    logging.basicConfig(filename='Wireshark2Neo4j.log', level=logging.DEBUG)  # установка уровня журналирования
 
-    config: Config = load_config()
-    pg = Neo4jWorld(config.neo4j_uri, config.neo4j_creds.user, config.neo4j_creds.password)
-    pg.start_node(config.file_pcapng)  # Создаём первый узел графа = имя входного файла
+    try:
+        config: Config = load_config()
+    except FileNotFoundError:
+        logging.error("Не найден файл конфигурации")
+    try:
+        pg = Neo4jWorld(config.neo4j_uri,
+                        config.neo4j_creds.user,
+                        config.neo4j_creds.password)   # Создание объекта Neo4jWorld и соединение с базой данных
+        cap = pyshark.FileCapture(config.file_pcapng)  # Открываем входной файл
+    except Exception as e:
+        logging.error(e)
+    try:
+        pg.start_node(config.file_pcapng)              # Создаём первый узел графа = имя входного файла
+        for pkt in cap:  # для каждого пакета из файла захвата трафика
+            print(pkt)
+            print(pkt.frame_info)
+            print(pkt.layers)
+            # ToDo: pg.create_packet(pkt)
 
-    cap = pyshark.FileCapture(config.file_pcapng)
-    for pkt in cap:  # для каждого пакета из файла захвата трафика
-        print(pkt)
-        print(pkt.frame_info)
-        print(pkt.layers)
-        # ToDo: pg.create_packet(pkt)
+            i: int = 1
+            for layer in pkt.layers:  # для каждого слоя пакета
+                print(i, layer)
+                i += 1
 
-        i: int = 1
-        for layer in pkt.layers:  # для каждого слоя пакета
-            print(i, layer)
-            i += 1
+            # ToDo: Создаем узлы в Neo4j: Пакет, Слой, Источник, Приёмник
 
-        # ToDo: Создаем узлы в Neo4j: Пакет, Слой, Источник, Приёмник
-
-    # Закрываем соединение с сервером Neo4j
-    pg.close()
+        # Закрываем соединение с сервером Neo4j
+        pg.close()
+    except Exception as e:
+        logging.error(e)  # Произошла ошибка
